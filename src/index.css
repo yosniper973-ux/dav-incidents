@@ -57,7 +57,7 @@ body {
   align-items: center;
   gap: 12px;
   position: sticky;
-  top: 0;
+  top: var(--banner-h, 0px);
   z-index: 100;
 }
 

@@ -8,6 +8,7 @@ import {
 import type { AgentWithSolde, SoldePolytex, Pret } from '../types';
 import SoldeModal from '../components/SoldeModal';
 import LoanModal from '../components/LoanModal';
+import EditAgentModal from '../components/EditAgentModal';
 
 interface Props {
   agentId: number;
@@ -33,6 +34,7 @@ export default function AgentDetail({ agentId, onBack }: Props) {
   const [loading, setLoading] = useState(true);
   const [showSolde, setShowSolde] = useState(false);
   const [showLoan, setShowLoan] = useState(false);
+  const [showEdit, setShowEdit] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -81,7 +83,7 @@ export default function AgentDetail({ agentId, onBack }: Props) {
       {/* Header */}
       <div className="header">
         <button className="back-btn" onClick={onBack}>←</button>
-        <div>
+        <div style={{ flex: 1 }}>
           <div className="header-title">{agent.nom} {agent.prenom}</div>
           {(agent.matricule || agent.service) && (
             <div className="header-sub">
@@ -89,6 +91,16 @@ export default function AgentDetail({ agentId, onBack }: Props) {
             </div>
           )}
         </div>
+        <button
+          onClick={() => setShowEdit(true)}
+          style={{
+            background: 'none', border: '1px solid var(--border)',
+            borderRadius: 8, padding: '6px 12px',
+            color: 'var(--text-muted)', fontSize: 13, cursor: 'pointer', flexShrink: 0,
+          }}
+        >
+          ✏️ Modifier
+        </button>
       </div>
 
       <div className="content">
@@ -205,6 +217,13 @@ export default function AgentDetail({ agentId, onBack }: Props) {
           agentName={agentFullName}
           onClose={() => setShowLoan(false)}
           onSaved={() => { setShowLoan(false); load(); }}
+        />
+      )}
+      {showEdit && (
+        <EditAgentModal
+          agent={agent}
+          onClose={() => setShowEdit(false)}
+          onSaved={() => { setShowEdit(false); load(); }}
         />
       )}
     </div>

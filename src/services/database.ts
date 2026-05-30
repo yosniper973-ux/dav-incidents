@@ -160,6 +160,20 @@ export async function createAgent(
   return res.changes?.lastId ?? 0;
 }
 
+export async function updateAgent(
+  id: number,
+  nom: string,
+  prenom: string,
+  matricule: string | null,
+  service: string | null
+): Promise<void> {
+  await getDb().run(
+    `UPDATE agents SET nom = ?, prenom = ?, matricule = ?, service = ? WHERE id = ?`,
+    [nom.trim(), prenom.trim(), matricule?.trim() || null, service?.trim() || null, id]
+  );
+  await saveIfWeb();
+}
+
 export async function getAgentsBlockes(): Promise<AgentWithSolde[]> {
   // JOIN sur le dernier solde par agent, filtre solde < 0 par ligne (HAVING sans GROUP BY est incorrect)
   const sql = `

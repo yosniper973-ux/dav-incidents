@@ -100,7 +100,7 @@ export default function App() {
   return (
     <>
       {update && <UpdateBanner info={update} onDismiss={() => setUpdate(null)} />}
-      <div style={update ? { paddingTop: 56 } : undefined}>
+      <div style={update ? { paddingTop: 56, '--banner-h': '56px' } as React.CSSProperties : undefined}>
         {screen.type === 'agent' ? (
           <AgentDetail
             agentId={screen.id}
