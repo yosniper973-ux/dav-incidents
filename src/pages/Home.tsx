@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { searchAgents, getAgentsBlockes, joursSince } from '../services/database';
+import { searchAgents, getAgentsBlockes, getAgentsSansSolde, joursSince } from '../services/database';
 import { exportRapportJour } from '../services/exportService';
 import type { AgentWithSolde } from '../types';
 import CreateAgentModal from '../components/CreateAgentModal';
@@ -15,15 +15,19 @@ function todayLabel(): string {
   return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}`;
 }
 
-function AgentCard({ agent, onClick }: { agent: AgentWithSolde; onClick: () => void }) {
+function AgentCard({ agent, onClick, variant = 'normal' }: { agent: AgentWithSolde; onClick: () => void; variant?: 'normal' | 'pending' }) {
   const isBlocked = agent.dernier_solde !== null && agent.dernier_solde < 0;
+  const isPending = variant === 'pending';
   const jours = agent.date_dernier_solde ? joursSince(agent.date_dernier_solde) : null;
 
   return (
     <div
       className={`card card-clickable ${isBlocked ? 'card-blocked' : ''}`}
       onClick={onClick}
-      style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}
+      style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
+        ...(isPending ? { borderColor: 'rgba(210,153,34,0.4)', background: 'rgba(210,153,34,0.06)' } : {}),
+      }}
     >
       <div style={{ flex: 1 }}>
         <div style={{ fontWeight: 700, fontSize: 16 }}>
@@ -39,15 +43,18 @@ function AgentCard({ agent, onClick }: { agent: AgentWithSolde; onClick: () => v
         )}
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
-        {isBlocked && (
-          <div className="tag-blocked">⛔ Bloqué</div>
+        {isBlocked && <div className="tag-blocked">⛔ Bloqué</div>}
+        {isPending && (
+          <div style={{
+            background: 'rgba(210,153,34,0.15)', color: '#d2991e',
+            border: '1px solid rgba(210,153,34,0.4)',
+            borderRadius: 8, padding: '2px 8px', fontSize: 11, fontWeight: 700,
+          }}>
+            ⏳ À vérifier
+          </div>
         )}
         {agent.dernier_solde !== null && (
-          <div style={{
-            fontWeight: 800,
-            fontSize: 18,
-            color: isBlocked ? 'var(--danger)' : 'var(--success)',
-          }}>
+          <div style={{ fontWeight: 800, fontSize: 18, color: isBlocked ? 'var(--danger)' : 'var(--success)' }}>
             {agent.dernier_solde > 0 ? '+' : ''}{agent.dernier_solde}
           </div>
         )}
@@ -61,18 +68,20 @@ export default function Home({ onOpenAgent }: Props) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<AgentWithSolde[]>([]);
   const [blockes, setBloques] = useState<AgentWithSolde[]>([]);
+  const [sansSolde, setSansSolde] = useState<AgentWithSolde[]>([]);
   const [searching, setSearching] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState('');
   const [showCreate, setShowCreate] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const loadBlockes = useCallback(async () => {
-    const list = await getAgentsBlockes();
-    setBloques(list);
+  const loadLists = useCallback(async () => {
+    const [bloques, sans] = await Promise.all([getAgentsBlockes(), getAgentsSansSolde()]);
+    setBloques(bloques);
+    setSansSolde(sans);
   }, []);
 
-  useEffect(() => { loadBlockes(); }, [loadBlockes]);
+  useEffect(() => { loadLists(); }, [loadLists]);
 
   function handleQueryChange(val: string) {
     setQuery(val);
@@ -174,11 +183,36 @@ export default function Home({ onOpenAgent }: Props) {
           </>
         )}
 
-        {/* Liste de rappel (accueil, hors recherche) */}
+        {/* Listes (accueil, hors recherche) */}
         {!showResults && (
           <>
-            <div className="section-title">
-              À revérifier sur Polytex
+            {/* Section agents sans solde Polytex */}
+            {sansSolde.length > 0 && (
+              <>
+                <div className="section-title">
+                  Sans solde Polytex
+                  <span style={{
+                    marginLeft: 8,
+                    background: '#d2991e',
+                    color: '#fff',
+                    borderRadius: 10,
+                    padding: '1px 8px',
+                    fontSize: 11,
+                    fontWeight: 700,
+                    verticalAlign: 'middle',
+                  }}>
+                    {sansSolde.length}
+                  </span>
+                </div>
+                {sansSolde.map(a => (
+                  <AgentCard key={a.id} agent={a} onClick={() => onOpenAgent(a.id)} variant="pending" />
+                ))}
+              </>
+            )}
+
+            {/* Section bloqués */}
+            <div className="section-title" style={{ marginTop: sansSolde.length > 0 ? 24 : 0 }}>
+              Bloqués sur Polytex
               {blockes.length > 0 && (
                 <span style={{
                   marginLeft: 8,
@@ -236,7 +270,7 @@ export default function Home({ onOpenAgent }: Props) {
           onCreated={(id) => {
             setShowCreate(false);
             clearSearch();
-            loadBlockes();
+            loadLists();
             onOpenAgent(id);
           }}
           prefill={query}

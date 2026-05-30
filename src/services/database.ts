@@ -174,6 +174,15 @@ export async function updateAgent(
   await saveIfWeb();
 }
 
+export async function getAgentsSansSolde(): Promise<AgentWithSolde[]> {
+  const sql = `${WITH_SOLDE}
+    WHERE NOT EXISTS (SELECT 1 FROM soldes_polytex WHERE agent_id = a.id)
+    ORDER BY a.created_at DESC
+  `;
+  const res = await getDb().query(sql, []);
+  return (res.values ?? []).map(mapAgent);
+}
+
 export async function getAgentsBlockes(): Promise<AgentWithSolde[]> {
   // JOIN sur le dernier solde par agent, filtre solde < 0 par ligne (HAVING sans GROUP BY est incorrect)
   const sql = `
