@@ -3,6 +3,7 @@ import {
   getAgent,
   getSoldesAgent,
   getPretsAgent,
+  deleteAgent,
   joursSince,
 } from '../services/database';
 import type { AgentWithSolde, SoldePolytex, Pret } from '../types';
@@ -35,6 +36,8 @@ export default function AgentDetail({ agentId, onBack }: Props) {
   const [showSolde, setShowSolde] = useState(false);
   const [showLoan, setShowLoan] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -77,6 +80,17 @@ export default function AgentDetail({ agentId, onBack }: Props) {
 
   const isBlocked = agent.dernier_solde !== null && agent.dernier_solde < 0;
   const agentFullName = `${agent.nom} ${agent.prenom}`;
+
+  async function handleDelete() {
+    setDeleting(true);
+    try {
+      await deleteAgent(agentId);
+      onBack();
+    } catch {
+      setDeleting(false);
+      setConfirmDelete(false);
+    }
+  }
 
   return (
     <div className="app">
@@ -200,6 +214,49 @@ export default function AgentDetail({ agentId, onBack }: Props) {
             Aucun prêt ni solde enregistré pour cet agent.
           </div>
         )}
+
+        {/* Suppression */}
+        <div style={{ marginTop: 40, paddingTop: 24, borderTop: '1px solid var(--border)' }}>
+          {!confirmDelete ? (
+            <button
+              className="btn btn-ghost"
+              style={{ color: 'var(--danger)', borderColor: 'rgba(248,81,73,0.3)' }}
+              onClick={() => setConfirmDelete(true)}
+            >
+              🗑️ Supprimer la fiche agent
+            </button>
+          ) : (
+            <div style={{
+              background: 'rgba(248,81,73,0.08)', border: '1px solid rgba(248,81,73,0.3)',
+              borderRadius: 12, padding: 16,
+            }}>
+              <div style={{ fontWeight: 700, color: 'var(--danger)', marginBottom: 6 }}>
+                ⚠️ Supprimer {agentFullName} ?
+              </div>
+              <div style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 14 }}>
+                Tous les prêts et soldes associés seront supprimés. Cette action est irréversible.
+              </div>
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button
+                  className="btn btn-secondary"
+                  style={{ flex: 1 }}
+                  onClick={() => setConfirmDelete(false)}
+                  disabled={deleting}
+                >
+                  Annuler
+                </button>
+                <button
+                  className="btn"
+                  style={{ flex: 1, background: 'var(--danger)', color: '#fff', border: 'none' }}
+                  onClick={handleDelete}
+                  disabled={deleting}
+                >
+                  {deleting ? 'Suppression…' : 'Confirmer'}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Modaux */}

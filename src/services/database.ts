@@ -160,6 +160,13 @@ export async function createAgent(
   return res.changes?.lastId ?? 0;
 }
 
+export async function deleteAgent(id: number): Promise<void> {
+  await getDb().run(`DELETE FROM prets WHERE agent_id = ?`, [id]);
+  await getDb().run(`DELETE FROM soldes_polytex WHERE agent_id = ?`, [id]);
+  await getDb().run(`DELETE FROM agents WHERE id = ?`, [id]);
+  await saveIfWeb();
+}
+
 export async function updateAgent(
   id: number,
   nom: string,
@@ -266,16 +273,15 @@ export async function getPretsAgent(agentId: number): Promise<Pret[]> {
   }));
 }
 
-// ── Export du jour ────────────────────────────────────────────────────────────
+// ── Export par période ────────────────────────────────────────────────────────
 
-export async function getPretsJour(): Promise<PretExport[]> {
-  const today = todayLocal();
+export async function getPretsRange(from: string, to: string): Promise<PretExport[]> {
   const res = await getDb().query(
     `SELECT p.*, a.nom, a.prenom, a.matricule, a.service
      FROM prets p JOIN agents a ON a.id = p.agent_id
-     WHERE substr(p.created_at, 1, 10) = ?
+     WHERE substr(p.created_at, 1, 10) >= ? AND substr(p.created_at, 1, 10) <= ?
      ORDER BY p.created_at`,
-    [today]
+    [from, to]
   );
   return (res.values ?? []).map(row => ({
     id: row.id as number,
@@ -291,14 +297,13 @@ export async function getPretsJour(): Promise<PretExport[]> {
   }));
 }
 
-export async function getSoldesJour(): Promise<SoldeExport[]> {
-  const today = todayLocal();
+export async function getSoldesRange(from: string, to: string): Promise<SoldeExport[]> {
   const res = await getDb().query(
     `SELECT s.*, a.nom, a.prenom, a.matricule, a.service
      FROM soldes_polytex s JOIN agents a ON a.id = s.agent_id
-     WHERE substr(s.created_at, 1, 10) = ?
+     WHERE substr(s.created_at, 1, 10) >= ? AND substr(s.created_at, 1, 10) <= ?
      ORDER BY s.created_at`,
-    [today]
+    [from, to]
   );
   return (res.values ?? []).map(row => ({
     id: row.id as number,

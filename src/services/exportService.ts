@@ -2,15 +2,16 @@ import * as XLSX from 'xlsx';
 import { Capacitor } from '@capacitor/core';
 import { Filesystem, Directory } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
-import { getPretsJour, getSoldesJour } from './database';
+import { getPretsRange, getSoldesRange } from './database';
 
 function pad(n: number) {
   return String(n).padStart(2, '0');
 }
 
-function dateLabel(): string {
-  const d = new Date();
-  return `${pad(d.getDate())}-${pad(d.getMonth() + 1)}-${d.getFullYear()}`;
+// "2026-06-10" → "10-06-2026"
+function isoToDMY(iso: string): string {
+  const [y, m, d] = iso.split('-');
+  return `${d}-${m}-${y}`;
 }
 
 function splitDateTime(isoStr: string) {
@@ -21,12 +22,12 @@ function splitDateTime(isoStr: string) {
   };
 }
 
-export async function exportRapportJour(): Promise<void> {
-  const [prets, soldes] = await Promise.all([getPretsJour(), getSoldesJour()]);
+export async function exportRapport(from: string, to: string): Promise<void> {
+  const [prets, soldes] = await Promise.all([getPretsRange(from, to), getSoldesRange(from, to)]);
 
   const wb = XLSX.utils.book_new();
 
-  // Feuille 1 : Prêts du jour
+  // Feuille 1 : Prêts
   const wsPrets = XLSX.utils.aoa_to_sheet([
     ['Date', 'Heure', 'Nom', 'Prénom', 'Matricule', 'Service', 'Articles', 'Quantité', 'Commentaire'],
     ...prets.map(p => {
@@ -35,11 +36,10 @@ export async function exportRapportJour(): Promise<void> {
       return [date, heure, p.nom, p.prenom, p.matricule ?? '', p.service ?? '', articlesStr, p.quantite, p.commentaire ?? ''];
     }),
   ]);
-  // Largeurs colonnes
   wsPrets['!cols'] = [{ wch: 12 }, { wch: 8 }, { wch: 18 }, { wch: 18 }, { wch: 12 }, { wch: 20 }, { wch: 24 }, { wch: 10 }, { wch: 30 }];
-  XLSX.utils.book_append_sheet(wb, wsPrets, 'Prêts du jour');
+  XLSX.utils.book_append_sheet(wb, wsPrets, 'Prêts');
 
-  // Feuille 2 : Soldes Polytex du jour
+  // Feuille 2 : Soldes Polytex
   const wsSoldes = XLSX.utils.aoa_to_sheet([
     ['Date', 'Heure', 'Nom', 'Prénom', 'Matricule', 'Service', 'Solde', 'Statut'],
     ...soldes.map(s => {
@@ -48,9 +48,10 @@ export async function exportRapportJour(): Promise<void> {
     }),
   ]);
   wsSoldes['!cols'] = [{ wch: 12 }, { wch: 8 }, { wch: 18 }, { wch: 18 }, { wch: 12 }, { wch: 20 }, { wch: 8 }, { wch: 10 }];
-  XLSX.utils.book_append_sheet(wb, wsSoldes, 'Soldes Polytex du jour');
+  XLSX.utils.book_append_sheet(wb, wsSoldes, 'Soldes Polytex');
 
-  const fileName = `Incidents_DAV_${dateLabel()}.xlsx`;
+  const rangeLabel = from === to ? isoToDMY(from) : `${isoToDMY(from)}_au_${isoToDMY(to)}`;
+  const fileName = `DAV_Incidents_${rangeLabel}.xlsx`;
 
   if (Capacitor.getPlatform() === 'web') {
     XLSX.writeFile(wb, fileName);
@@ -66,12 +67,13 @@ export async function exportRapportJour(): Promise<void> {
     directory: Directory.Cache,
   });
 
-  const today = new Date();
-  const label = `${pad(today.getDate())}/${pad(today.getMonth() + 1)}/${today.getFullYear()}`;
+  const label = from === to
+    ? isoToDMY(from).replace(/-/g, '/')
+    : `du ${isoToDMY(from).replace(/-/g, '/')} au ${isoToDMY(to).replace(/-/g, '/')}`;
 
   await Share.share({
     title: `Incidents DAV — ${label}`,
-    text: `Rapport des incidents DAV du ${label}`,
+    text: `Rapport des incidents DAV ${label}`,
     url: writeResult.uri,
     dialogTitle: 'Partager le rapport Excel',
   });

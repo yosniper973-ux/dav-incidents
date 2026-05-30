@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { searchAgents, getAgentsBlockes, getAgentsSansSolde, joursSince } from '../services/database';
-import { exportRapportJour } from '../services/exportService';
 import type { AgentWithSolde } from '../types';
 import CreateAgentModal from '../components/CreateAgentModal';
+import ExportModal from '../components/ExportModal';
 
 interface Props {
   onOpenAgent: (id: number) => void;
@@ -70,8 +70,7 @@ export default function Home({ onOpenAgent }: Props) {
   const [blockes, setBloques] = useState<AgentWithSolde[]>([]);
   const [sansSolde, setSansSolde] = useState<AgentWithSolde[]>([]);
   const [searching, setSearching] = useState(false);
-  const [exporting, setExporting] = useState(false);
-  const [exportError, setExportError] = useState('');
+  const [showExport, setShowExport] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -98,17 +97,6 @@ export default function Home({ onOpenAgent }: Props) {
   function clearSearch() {
     setQuery('');
     setResults([]);
-  }
-
-  async function handleExport() {
-    setExporting(true);
-    setExportError('');
-    try {
-      await exportRapportJour();
-    } catch (e) {
-      setExportError(String(e));
-    }
-    setExporting(false);
   }
 
   const showResults = query.trim().length > 0;
@@ -242,17 +230,13 @@ export default function Home({ onOpenAgent }: Props) {
 
             {/* Export */}
             <div className="section-title" style={{ marginTop: 32 }}>Rapport</div>
-            {exportError && (
-              <div className="error-box">{exportError}</div>
-            )}
             <button
               className="btn btn-secondary"
-              onClick={handleExport}
-              disabled={exporting}
+              onClick={() => setShowExport(true)}
               style={{ gap: 10 }}
             >
               <span style={{ fontSize: 20 }}>📊</span>
-              {exporting ? 'Génération…' : `Envoyer le rapport du jour (Excel)`}
+              Exporter en Excel…
             </button>
           </>
         )}
@@ -262,6 +246,9 @@ export default function Home({ onOpenAgent }: Props) {
       <button className="fab" onClick={() => setShowCreate(true)} title="Nouvel agent">
         +
       </button>
+
+      {/* Modal export */}
+      {showExport && <ExportModal onClose={() => setShowExport(false)} />}
 
       {/* Modal création */}
       {showCreate && (
