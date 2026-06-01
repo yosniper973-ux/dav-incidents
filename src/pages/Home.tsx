@@ -3,6 +3,7 @@ import { searchAgents, getAgentsBlockes, getAgentsSansSolde, joursSince } from '
 import type { AgentWithSolde } from '../types';
 import CreateAgentModal from '../components/CreateAgentModal';
 import ExportModal from '../components/ExportModal';
+import ImportModal from '../components/ImportModal';
 
 interface Props {
   onOpenAgent: (id: number) => void;
@@ -71,6 +72,7 @@ export default function Home({ onOpenAgent }: Props) {
   const [sansSolde, setSansSolde] = useState<AgentWithSolde[]>([]);
   const [searching, setSearching] = useState(false);
   const [showExport, setShowExport] = useState(false);
+  const [showImport, setShowImport] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -228,15 +230,23 @@ export default function Home({ onOpenAgent }: Props) {
               ))
             )}
 
-            {/* Export */}
-            <div className="section-title" style={{ marginTop: 32 }}>Rapport</div>
+            {/* Import / Export */}
+            <div className="section-title" style={{ marginTop: 32 }}>Données</div>
             <button
               className="btn btn-secondary"
+              onClick={() => setShowImport(true)}
+              style={{ gap: 10 }}
+            >
+              <span style={{ fontSize: 20 }}>📥</span>
+              Importer agents (CSV / Excel)
+            </button>
+            <button
+              className="btn btn-secondary mt-8"
               onClick={() => setShowExport(true)}
               style={{ gap: 10 }}
             >
               <span style={{ fontSize: 20 }}>📊</span>
-              Exporter en Excel…
+              Exporter rapport Excel…
             </button>
           </>
         )}
@@ -249,6 +259,14 @@ export default function Home({ onOpenAgent }: Props) {
 
       {/* Modal export */}
       {showExport && <ExportModal onClose={() => setShowExport(false)} />}
+
+      {/* Modal import */}
+      {showImport && (
+        <ImportModal
+          onClose={() => setShowImport(false)}
+          onImported={() => loadLists()}
+        />
+      )}
 
       {/* Modal création */}
       {showCreate && (

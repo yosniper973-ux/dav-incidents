@@ -160,6 +160,27 @@ export async function createAgent(
   return res.changes?.lastId ?? 0;
 }
 
+export async function importAgents(
+  agents: { nom: string; prenom: string; matricule: string | null; service: string | null }[]
+): Promise<{ created: number; skipped: number }> {
+  let created = 0, skipped = 0;
+  for (const a of agents) {
+    if (a.matricule) {
+      const existing = await getDb().query(
+        'SELECT id FROM agents WHERE matricule = ?', [a.matricule.trim()]
+      );
+      if ((existing.values ?? []).length > 0) { skipped++; continue; }
+    }
+    await getDb().run(
+      'INSERT INTO agents (nom, prenom, matricule, service, created_at) VALUES (?, ?, ?, ?, ?)',
+      [a.nom.trim(), a.prenom.trim(), a.matricule?.trim() || null, a.service?.trim() || null, nowLocal()]
+    );
+    created++;
+  }
+  await saveIfWeb();
+  return { created, skipped };
+}
+
 export async function deleteAgent(id: number): Promise<void> {
   await getDb().run(`DELETE FROM prets WHERE agent_id = ?`, [id]);
   await getDb().run(`DELETE FROM soldes_polytex WHERE agent_id = ?`, [id]);
